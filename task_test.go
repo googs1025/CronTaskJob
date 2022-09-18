@@ -16,7 +16,7 @@ func Test_AddFunc(t *testing.T) {
 	cron.AddFunc(time.Now().UnixNano()+int64(time.Second), func() {
 		fmt.Println("one second after")
 	})
-
+	cron.Logger.Println(fmt.Println("log out!!"))
 	cron.AddFunc(time.Now().UnixNano()+int64(time.Second * 3), func() {
 		fmt.Println("three second after")
 	})
@@ -24,6 +24,17 @@ func Test_AddFunc(t *testing.T) {
 	cron.AddFunc(time.Now().UnixNano()+int64(time.Second * 10), func() {
 		fmt.Println("ten second after")
 	})
+
+	taskl := cron.ExportInterface()
+	for _, task := range taskl {
+		fmt.Println(task.GetUUID())
+	}
+
+
+	tasklist := cron.Export()
+	for _, task := range tasklist {
+		fmt.Println(task.ID)
+	}
 
 	timer := time.NewTimer(20 * time.Second)
 

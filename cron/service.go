@@ -6,26 +6,32 @@ import (
 	"time"
 )
 
+// AddFuncSpaceNumber 加入调度对列中
 func (scheduler *TaskScheduler) AddFuncSpaceNumber(spaceTime int64, number int, f func())  {
 	task := tasks.GetTaskWithFuncSpacingNumber(spaceTime, number, f)
-	scheduler.AddTask(task)
+	_ = scheduler.AddTask(task)
 }
 
+// AddFuncSpace 加入调度对列中
 func (scheduler *TaskScheduler) AddFuncSpace(spaceTime int64, endTime int64, f func())  {
 	task := tasks.GetTaskWithFuncSpacing(spaceTime, endTime, f)
-	scheduler.AddTask(task)
+	_ = scheduler.AddTask(task)
 }
 
+// AddFunc 加入调度对列中
 func (scheduler *TaskScheduler) AddFunc(unixTime int64, f func())  {
 	task := tasks.GetTaskWithFunc(unixTime, f)
-	scheduler.AddTask(task)
+	_ = scheduler.AddTask(task)
 }
 
+// AddTask 加入调度对列中
 func (scheduler *TaskScheduler) AddTask(task *tasks.Task) string {
 
+	// 筛选条件。
 	if task.RunTime < 100000000000 {
 		task.RunTime = task.RunTime * int64(time.Second)
 	}
+
 	if task.RunTime < time.Now().UnixNano() {
 		task.RunTime = time.Now().UnixNano() + int64(time.Second)
 	}
@@ -38,6 +44,7 @@ func (scheduler *TaskScheduler) AddTask(task *tasks.Task) string {
 
 }
 
+
 func (scheduler *TaskScheduler) addTask(task tasks.TaskInterface) string {
 	if scheduler.lock {
 		scheduler.swap = append(scheduler.swap, task)
@@ -46,15 +53,15 @@ func (scheduler *TaskScheduler) addTask(task tasks.TaskInterface) string {
 		scheduler.add <-task
 	}
 
-	return task.GetUuid()
+	return task.GetUUID()
 
 }
 
-//new export
+// ExportInterface 调用task实现的接口方法
 func (scheduler *TaskScheduler) ExportInterface() []tasks.TaskInterface {
 	return scheduler.tasks
 }
-//compatible old export tasks
+// Export 查看task细节
 func (scheduler *TaskScheduler) Export() []*tasks.Task {
 	task := make([]*tasks.Task,0)
 	for _,v := range scheduler.tasks {
@@ -63,22 +70,18 @@ func (scheduler *TaskScheduler) Export() []*tasks.Task {
 	return task
 }
 
-//stop tasks with uuid
+// StopOnce 删除
 func (scheduler *TaskScheduler) StopOnce(uuidStr string) {
 	scheduler.remove <- uuidStr
 }
 
-//run Cron
+// Start 启动调度对列
 func (scheduler *TaskScheduler) Start() {
-	//初始化的時候加入一個一年的長定時器,間隔1小時執行一次
-	//task := tasks.GetTaskWithFuncSpacing(3600, time.Now().Add(time.Hour * 24 * 365).UnixNano(), func() {
-	//	log.Println("It's a Hour timer!")
-	//})
-	//scheduler.tasks = append(scheduler.tasks, task)
+
 	go scheduler.run()
 }
 
-//stop all
+// Stop 停止调度对列工作
 func (scheduler *TaskScheduler) Stop() {
 	scheduler.stop <- struct{}{}
 }
@@ -100,6 +103,7 @@ func (scheduler *TaskScheduler) run() {
 
 		var d time.Duration
 		if i64 < 0 {
+			// 设置时间
 			scheduler.tasks[key].SetRunTime(now.UnixNano())
 			if task != nil {
 				go task.RunJob()
@@ -145,14 +149,17 @@ func (scheduler *TaskScheduler) run() {
 	}
 }
 
-//return a tasks and key In tasks list
+
+// GetTask 取得task对象
 func (scheduler *TaskScheduler) GetTask() (task tasks.TaskGetInterface, tempKey int) {
 	scheduler.Lock()
 	defer scheduler.UnLock()
 
+	// 没有task
 	if len(scheduler.tasks) < 1 {
 		return nil,-1
 	}
+
 	min := scheduler.tasks[0].GetRunTime()
 	tempKey = 0
 
@@ -201,12 +208,12 @@ func (scheduler *TaskScheduler) doAndReset(key int) {
 }
 
 
-//remove tasks by uuid
+// 由ID 找的task并删除
 func (scheduler *TaskScheduler) removeTask(uuidStr string) {
 	scheduler.Lock()
 	defer scheduler.UnLock()
 	for key, task := range scheduler.tasks {
-		if task.GetUuid() == uuidStr {
+		if task.GetUUID() == uuidStr {
 			scheduler.tasks = append(scheduler.tasks[:key], scheduler.tasks[key+1:]...)
 			break
 		}
@@ -214,13 +221,15 @@ func (scheduler *TaskScheduler) removeTask(uuidStr string) {
 }
 
 
-
+// Lock 加锁操作
 func (scheduler *TaskScheduler) Lock() {
 	scheduler.lock = true
 }
 
+// UnLock 解锁操作
 func (scheduler *TaskScheduler) UnLock() {
 	scheduler.lock = false
+	// 解锁后，要检查 swap对列中有没有task，有需要加入调度对列，并设置为0
 	if len(scheduler.swap) > 0 {
 		for _, task := range scheduler.swap {
 			scheduler.tasks = append(scheduler.tasks, task)
