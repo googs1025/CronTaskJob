@@ -46,9 +46,11 @@ func (scheduler *TaskScheduler) AddTask(task *tasks.Task) string {
 
 
 func (scheduler *TaskScheduler) addTask(task tasks.TaskInterface) string {
+	// 如果上锁，加入等待对列
 	if scheduler.lock {
 		scheduler.swap = append(scheduler.swap, task)
 	} else {
+		// 加入对列
 		scheduler.tasks = append(scheduler.tasks, task)
 		scheduler.add <-task
 	}
